@@ -10,7 +10,7 @@ import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { watch, type WatchStopHandle } from 'vue';
 import { COLORS, LAYERS, LINKS, PREFIX, uasColor, type LayerKey } from './constants.ts';
 import { state, type Detail, type DetailRow } from './store.ts';
-import { keysFor, loadMetars, loadTfrs, manifest, packFile, tile, type Manifest, type MetarRow } from './data.ts';
+import { keysFor, loadMetars, loadSfra, loadTfrs, manifest, packFile, tile, type Manifest, type MetarRow } from './data.ts';
 import { circle, emptyCollection, esriRings, fmtTime, M_PER_FT } from './geo.ts';
 import { tfrActive, vertText, type Tfr } from './tfr.ts';
 import { planShape } from './planner.ts';
@@ -20,7 +20,7 @@ const SRC = (k: string): string => `${PREFIX}-${k}`;
 const LYR = (k: string, part: string): string => `${PREFIX}-${k}-${part}`;
 const FONT = ['Open Sans Bold'];
 
-const SOURCES = ['tfr', 'notams', 'airspace', 'sua', 'uasfm', 'nsufr', 'obstacles', 'metars', 'planhaz', 'plan', 'islands'] as const;
+const SOURCES = ['tfr', 'notams', 'airspace', 'sua', 'uasfm', 'nsufr', 'obstacles', 'metars', 'sfra', 'planhaz', 'plan', 'islands'] as const;
 
 /** Layers that answer a click, in priority order. */
 const CLICKABLE: string[] = [
@@ -37,7 +37,9 @@ const CLICKABLE: string[] = [
     LYR('sua', 'fill'),
     LYR('sua', 'ext'),
     LYR('airspace', 'fill'),
-    LYR('airspace', 'ext')
+    LYR('airspace', 'ext'),
+    LYR('sfra', 'fill'),
+    LYR('sfra', 'ext')
 ];
 
 interface EsriFeature {
@@ -272,6 +274,13 @@ export class AirAwareLayers {
             label('obstacles', 11, 10, { 'text-offset': [0, 1.0], 'text-anchor': 'top' }),
             dot('metars', 7),
             label('metars', 6, 11, { 'text-offset': [0, 1.3], 'text-anchor': 'top' }),
+            // Special Flight Rules Airspace: sectional style, a wide-dashed blue boundary with
+            // blue text, over a barely tinted fill.
+            fill('sfra', 0.04), line('sfra', 2.2, [6, 3]), ext('sfra'),
+            {
+                ...label('sfra', 6, 10),
+                paint: { 'text-color': COLORS.sfra, 'text-halo-color': 'rgba(255,255,255,0.9)', 'text-halo-width': 1.5 }
+            } as LayerSpecification,
             {
                 id: LYR('planhaz', 'fill'), type: 'fill', source: SRC('planhaz'), filter: polys,
                 paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['coalesce', ['get', 'fillOpacity'], 0.2] }
@@ -351,7 +360,7 @@ export class AirAwareLayers {
             const on = state.settings.layers[l.key] && !planning;
             for (const part of ['fill', 'line', 'label', 'circle']) set(LYR(l.key, part), on);
             set(LYR(l.key, 'ext'), on && vol);
-            if (['tfr', 'airspace', 'sua'].includes(l.key)) set(LYR(l.key, 'fill'), on && !vol);
+            if (['tfr', 'airspace', 'sua', 'sfra'].includes(l.key)) set(LYR(l.key, 'fill'), on && !vol);
         }
     }
 
@@ -478,6 +487,7 @@ export class AirAwareLayers {
                 case 'nsufr': ({ fc, text } = await this.loadNsufr(rem)); break;
                 case 'obstacles': ({ fc, text } = await this.loadObstacles(view, rem)); break;
                 case 'metars': ({ fc, text } = await this.loadMetar(view, rem)); break;
+                case 'sfra': ({ fc, text } = await this.loadSfra(view, rem)); break;
             }
             if (this.generation[key] !== gen || !this.active) return;
             this.setData(key, fc);
@@ -656,6 +666,56 @@ export class AirAwareLayers {
         }
         const text = `${features.length} ${sua ? 'special use areas' : 'airspace shelves'} in view` + (m.cycle ? ` · cycle ${m.cycle}` : '');
         return { fc: { type: 'FeatureCollection', features }, text };
+    }
+
+    // ---- Special Flight Rules Airspace ----
+
+    private async loadSfra(v: Box, rem: Remember): Promise<{ fc: FeatureCollection; text: string }> {
+        const all = await loadSfra();
+        const features: Feature[] = [];
+        for (const f of all) {
+            const a = f.attributes || {};
+            const geom = f.geometry?.rings ? esriRings(f.geometry.rings) : null;
+            if (!geom) continue;
+            // The whole national set is small; keep only what touches the view.
+            let w = 180, e = -180, s = 90, n = -90;
+            for (const ring of f.geometry?.rings || []) {
+                for (const [x, y] of ring) {
+                    if (x < w) w = x;
+                    if (x > e) e = x;
+                    if (y < s) s = y;
+                    if (y > n) n = y;
+                }
+            }
+            if (e < v.w || w > v.e || n < v.s || s > v.n) continue;
+            const lower = esriVert(a, 'LOWER');
+            const upper = esriVert(a, 'UPPER');
+            const name = String(a.NAME_TXT || '').trim();
+            const id = rem({
+                title: name,
+                subtitle: 'Special Flight Rules / Special Air Traffic Rules',
+                color: COLORS.sfra,
+                rows: [
+                    { label: 'Floor', value: lower.text },
+                    { label: 'Ceiling', value: upper.text },
+                    { label: 'Hours', value: workHours(String(a.WORKHR_CODE || '')) },
+                    ...(a.REMARKS_TXT ? [{ label: 'Remarks', value: String(a.REMARKS_TXT) }] : [])
+                ]
+            });
+            features.push({
+                type: 'Feature',
+                geometry: geom,
+                properties: {
+                    aaid: id,
+                    color: COLORS.sfra,
+                    label: name,
+                    baseM: lower.ft * M_PER_FT,
+                    topM: upper.ft * M_PER_FT,
+                    name
+                }
+            });
+        }
+        return { fc: { type: 'FeatureCollection', features }, text: `${features.length} special flight rules areas in view` };
     }
 
     // ---- UAS Facility Map ----

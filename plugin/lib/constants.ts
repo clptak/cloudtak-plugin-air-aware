@@ -6,7 +6,7 @@ export const FLOAT_UID = 'air-aware-details';
 export const PREFIX = 'air-aware';
 export const API = '/api/plugin/air-aware';
 
-export type LayerKey = 'tfr' | 'notams' | 'airspace' | 'sua' | 'uasfm' | 'nsufr' | 'obstacles' | 'metars';
+export type LayerKey = 'tfr' | 'notams' | 'airspace' | 'sua' | 'uasfm' | 'nsufr' | 'obstacles' | 'metars' | 'sfra';
 
 export const LAYERS: Array<{ key: LayerKey; label: string; description: string; minZoom: number }> = [
     { key: 'tfr', label: 'TFR', description: 'FAA Temporary Flight Restrictions: red in effect, amber scheduled', minZoom: 0 },
@@ -16,7 +16,8 @@ export const LAYERS: Array<{ key: LayerKey; label: string; description: string; 
     { key: 'uasfm', label: 'UAS Ceilings', description: 'FAA UAS Facility Map: max altitude without further authorization', minZoom: 9 },
     { key: 'nsufr', label: 'UAS No-Fly', description: 'National Security UAS Flight Restrictions, surface to 400 ft AGL', minZoom: 0 },
     { key: 'obstacles', label: 'Obstacles', description: 'FAA Digital Obstacle File: towers, wires, turbines, stacks', minZoom: 9 },
-    { key: 'metars', label: 'METARs', description: 'Flight category: VFR green, MVFR blue, IFR red, LIFR magenta', minZoom: 6 }
+    { key: 'metars', label: 'METARs', description: 'Flight category: VFR green, MVFR blue, IFR red, LIFR magenta', minZoom: 6 },
+    { key: 'sfra', label: 'Special Flight Rules Airspace', description: 'SFRAs and special air traffic rules areas (DC, Grand Canyon, NY Hudson corridor), sectional blue', minZoom: 5 }
 ];
 
 export const COLORS = {
@@ -29,6 +30,7 @@ export const COLORS = {
     classE: '#e05297',
     classE1200: '#5c86c8',
     classOther: '#9e9e9e',
+    sfra: '#2c5aa0',
     prohibited: '#d32f2f',
     restricted: '#f4511e',
     warning: '#fb8c00',

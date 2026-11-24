@@ -22,6 +22,13 @@ const PACK_BASE = 'https://mapdepot.takwerx.org/airaware/';
 const TFR_LIST = 'https://tfr.faa.gov/tfrapi/exportTfrList';
 const TFR_DETAIL = 'https://tfr.faa.gov/download/detail_';
 const METAR = 'https://aviationweather.gov/api/data/metar';
+// FAA AIS airspace, TYPE_CODE SATA: Special Flight Rules Areas and Special Air Traffic Rules.
+// The takwerx airspace pack leaves these out. A fixed query: nothing here comes from the client.
+const SFRA_FIELDS = 'OBJECTID,NAME_TXT,DISTVERTUPPER_VAL,DISTVERTUPPER_UOM,DISTVERTUPPER_CODE,DISTVERTLOWER_VAL,DISTVERTLOWER_UOM,DISTVERTLOWER_CODE,WORKHR_CODE,REMARKS_TXT';
+const SFRA = 'https://services6.arcgis.com/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Airspace/FeatureServer/0/query'
+    + '?where=' + encodeURIComponent("TYPE_CODE='SATA'")
+    + '&outFields=' + SFRA_FIELDS
+    + '&outSR=4326&maxAllowableOffset=0.0002&geometryPrecision=5&f=json';
 
 const TIMEOUT_MS = 20_000;
 const MAX_BODY = 32 * 1024 * 1024;
@@ -225,6 +232,24 @@ export default async function router(schema: Schema, config: ConfigStateless): P
             const url = TFR_DETAIL + req.params.id + '.xml';
             const xml = await cached(url, 10 * MINUTE, async () => (await download(url)).toString('utf8'));
             res.json({ id: req.params.id, xml: String(xml) });
+        } catch (err) {
+            Err.respond(err, res);
+        }
+    });
+
+    await schema.get('/plugin/air-aware/sfra', {
+        name: 'Air Aware Special Flight Rules Airspace',
+        group: 'AirAware',
+        description: 'FAA Special Flight Rules Areas and Special Air Traffic Rules areas (Esri JSON)',
+        res: Type.Any()
+    }, async (req, res) => {
+        try {
+            await Auth.as_user(config, req);
+            res.json(await cached(SFRA, 360 * MINUTE, async () => {
+                const body = parseJson(await download(SFRA), false) as { features?: unknown[]; error?: unknown };
+                if (body.error || !Array.isArray(body.features)) throw new Err(502, null, 'Upstream returned no features');
+                return body;
+            }));
         } catch (err) {
             Err.respond(err, res);
         }

@@ -166,3 +166,24 @@ export async function loadMetars(south: number, west: number, north: number, eas
     const rows = await std(`${API}/metar?${q.toString()}`) as MetarRow[];
     return Array.isArray(rows) ? rows : [];
 }
+
+export interface SfraFeature {
+    attributes: Record<string, string | number | null>;
+    geometry?: { rings?: number[][][] };
+}
+
+let sfraCache: Timed<SfraFeature[]> | undefined;
+
+/** Every Special Flight Rules / Special Air Traffic Rules area (FAA AIS airspace, TYPE SATA). */
+export async function loadSfra(): Promise<SfraFeature[]> {
+    if (sfraCache && Date.now() - sfraCache.at < 6 * 3600_000) return sfraCache.value;
+    try {
+        const res = await std(`${API}/sfra`) as { features?: SfraFeature[] };
+        const value = Array.isArray(res?.features) ? res.features : [];
+        sfraCache = { at: Date.now(), value };
+        return value;
+    } catch (err) {
+        if (sfraCache) return sfraCache.value;
+        throw err;
+    }
+}

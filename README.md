@@ -6,7 +6,7 @@ A CloudTAK plugin for crews working under or in the air. It answers two question
 
 ## What it does
 
-Eight layers, each switched on or off on its own:
+Nine layers, each switched on or off on its own:
 
 | Layer | What you see | Source |
 |---|---|---|
@@ -18,6 +18,7 @@ Eight layers, each switched on or off on its own:
 | **UAS No-Fly** | National Security UAS Flight Restrictions: bases, labs, dams and nuclear sites, surface to 400 ft AGL. The details include the FAA point of contact. | FAA NSUFR, takwerx pack |
 | **Obstacles** | Digital Obstacle File towers, wires, turbines and stacks, labelled with height AGL and top MSL. You can filter by height and type. Zoom 9+. | FAA DOF, takwerx pack |
 | **METARs** | Flight-category dots: VFR green, MVFR blue, IFR red, LIFR magenta, as published (never derived). Zoom 6+. | aviationweather.gov |
+| **Special Flight Rules Airspace** | SFRAs and special air traffic rules areas (Washington DC, Grand Canyon, New York Hudson/East River corridor, Luke AFB, Niagara Falls, Alaska and Florida terminal areas). Wide-dashed sectional blue with blue labels. Zoom 5+. | FAA AIS airspace (type SATA), via the server route |
 
 Clicking anything on the map opens its details in a floating pane. A CoT marker drawn on top takes the click instead.
 
@@ -58,6 +59,7 @@ Settings (layers, obstacle filters, planner numbers) are stored per browser.
 2. **Outbound HTTPS from the CloudTAK API container** must be able to reach:
    - `https://mapdepot.takwerx.org` (airspace, obstacle, UAS Facility Map, NSUFR and NOTAM packs)
    - `https://tfr.faa.gov` (TFR list and details)
+   - `https://services6.arcgis.com` (FAA AIS Special Flight Rules Airspace)
    - `https://aviationweather.gov` (METARs)
 
    No action is needed if the server already has normal internet egress.

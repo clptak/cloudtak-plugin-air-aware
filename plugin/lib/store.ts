@@ -39,7 +39,8 @@ export const DEFAULT_SETTINGS: Settings = {
         uasfm: false,
         nsufr: false,
         obstacles: false,
-        metars: false
+        metars: false,
+        sfra: false
     },
     obstacleMinFt: 200,
     obstacleTypes: [],
@@ -192,7 +193,8 @@ export const state = reactive({
         uasfm: { text: 'Off', loading: false },
         nsufr: { text: 'Off', loading: false },
         obstacles: { text: 'Off', loading: false },
-        metars: { text: 'Off', loading: false }
+        metars: { text: 'Off', loading: false },
+        sfra: { text: 'Off', loading: false }
     } as Record<LayerKey, LayerStatus>,
     /** The pinned line: the UAS ceiling at the map center. */
     here: '' as string,
